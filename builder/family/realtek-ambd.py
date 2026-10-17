@@ -199,6 +199,8 @@ queue.AddLibrary(
         "+<src/netif/ethernet.c>",
         # SNTP client (ESPHome's sntp component links against it)
         "+<src/apps/sntp/sntp.c>",
+        # mDNS responder (ESPHome's mdns component)
+        "+<src/apps/mdns/*.c>",
         "+<port/realtek/freertos/*.c>",
         "+<port/realtek/*.c>",
     ],
