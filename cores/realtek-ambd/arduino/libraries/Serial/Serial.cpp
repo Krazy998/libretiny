@@ -43,7 +43,20 @@ void SerialClass::beginPrivate(unsigned long baudrate, uint16_t config) {
 			RCC_PeriphClockCmd(APBPeriph_UART1, APBPeriph_UART1_CLOCK, ENABLE);
 			break;
 		default:
-			idx = 3; // LP UART on PB1/PB2 (clock enabled at boot)
+			idx = 3; // LP UART on PB1/PB2
+			// The LP UART lives in the KM0 (LP) domain, where it is "LSYS UART1". Nothing
+			// enables it for KM4, so turn on its LP-side clock and function here (the KM4
+			// ROM's RCC_PeriphClockCmd only reaches the HP registers).
+			HAL_WRITE32(
+				SYSTEM_CTRL_BASE_LP,
+				REG_LP_CLK_CTRL1,
+				HAL_READ32(SYSTEM_CTRL_BASE_LP, REG_LP_CLK_CTRL1) | BIT_LSYS_UART1_CKE
+			);
+			HAL_WRITE32(
+				SYSTEM_CTRL_BASE_LP,
+				REG_LP_FUNC_EN1,
+				HAL_READ32(SYSTEM_CTRL_BASE_LP, REG_LP_FUNC_EN1) | BIT_LSYS_UART1_FEN_GLB | BIT_LSYS_UART1_FEN_FUN
+			);
 			break;
 	}
 	this->data->uart = UART_DEV_TABLE[idx].UARTx;
@@ -77,6 +90,11 @@ void SerialClass::configure(unsigned long baudrate, uint16_t config) {
 	cfg.ParityType = (config & SERIAL_PARITY_MASK) == SERIAL_PARITY_EVEN;
 	cfg.StopBit	   = (config & SERIAL_STOP_BIT_MASK) == SERIAL_STOP_BIT_2;
 	UART_Init(uart, &cfg);
+	// As the SDK's serial_baud(): run the UART from the 40 MHz XTAL before computing the
+	// divisor. Left alone, the LP UART stays on the low-power oscillator and never
+	// transmits. The LOGUART is already on XTAL (set up by the ROM), so leave it be.
+	if (this->port != 0)
+		RCC_PeriphClockSource_UART(uart, UART_RX_CLK_XTAL_40M);
 	UART_SetBaud(uart, baudrate);
 
 	this->baudrate = baudrate;
