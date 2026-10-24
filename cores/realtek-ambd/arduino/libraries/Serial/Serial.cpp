@@ -97,6 +97,12 @@ void SerialClass::configure(unsigned long baudrate, uint16_t config) {
 		RCC_PeriphClockSource_UART(uart, UART_RX_CLK_XTAL_40M);
 	UART_SetBaud(uart, baudrate);
 
+	// UART_Init() above resets the receiver, so enable it (and its interrupt) again.
+	if (this->rx != PIN_INVALID) {
+		UART_RxCmd(uart, ENABLE);
+		UART_INTConfig(uart, RUART_IER_ERBI, ENABLE);
+	}
+
 	this->baudrate = baudrate;
 	this->config   = config;
 }
